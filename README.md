@@ -1,8 +1,8 @@
 ### 1. 下载项目
 
-使用 [DownGit](https://downgit.github.io/) 下载项目：
+使用 [DownGit](https://downgit.github.io/) 下载下面分类别的项目：
 1. 访问 https://downgit.github.io/
-2. 粘贴项目URL 如：
+2. 粘贴你需要的项目URL 如：
 ```
  https://github.com/allenzzeng/study-notes/edit/main/01
 ```
