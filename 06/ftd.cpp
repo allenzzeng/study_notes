@@ -4,7 +4,7 @@
 #include <math.h>
 
 #define HBit 0x3FFF
-/*note:
+/*note:  Fixed-point Scaling
 from hsv_lut.h:
 m_Sin_Theta[31]={0,18,36...481,496,512}         sin 30=0.5*1024
 m_Cos_Theta[31]={1024,1024,1023...904,896,887}        cos 0=1*1024
