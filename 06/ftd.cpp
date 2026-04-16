@@ -4,15 +4,14 @@
 #include <math.h>
 
 #define HBit 0x3FFF
-/*
-from hsv_lut.h
-m_Sin_Theta[31]={0,18,36...481,496,512}         
-m_Cos_Theta[31]={1024,1024,1023...904,896,887}        
-SQRT_LUT[256]={0,16,23...254,255,255}        
-ATAN_ANGLE[65]={0,0,1...44,44,45}        
-Delta_LUT[256]={4096,2048,1365...16,16,16}        
-ATAN_ANGLE[65]={0,0,1...44,44,45}        
-atan_LUT[16]={11520,6801,3593...4,2,1}        
+/*note:
+from hsv_lut.h:
+m_Sin_Theta[31]={0,18,36...481,496,512}         sin 30=0.5*1024
+m_Cos_Theta[31]={1024,1024,1023...904,896,887}        cos 0=1*1024
+SQRT_LUT[256]={0,16,23...254,255,255}        sqrt(1)=1*16    
+ATAN_ANGLE[65]={0,0,1...44,44,45}        arctan 0/64 =0  arctan (64/64) =45
+Delta_LUT[256]={4096,2048,1365...16,16,16}       [0]=4096/1  [1]=4096/2      
+atan_LUT[16]={11520,6801,3593...4,2,1}        [0]=arctan(1)*256   [1]=arctan(0.5)*256
 */
 struct FTDModel *FTDModel_New(struct FTDConfig *config)
 {
