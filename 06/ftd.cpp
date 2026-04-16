@@ -4,7 +4,16 @@
 #include <math.h>
 
 #define HBit 0x3FFF
-
+/*
+from hsv_lut.h
+m_Sin_Theta[31]={0,18,36...481,496,512}         
+m_Cos_Theta[31]={1024,1024,1023...904,896,887}        
+SQRT_LUT[256]={0,16,23...254,255,255}        
+ATAN_ANGLE[65]={0,0,1...44,44,45}        
+Delta_LUT[256]={4096,2048,1365...16,16,16}        
+ATAN_ANGLE[65]={0,0,1...44,44,45}        
+atan_LUT[16]={11520,6801,3593...4,2,1}        
+*/
 struct FTDModel *FTDModel_New(struct FTDConfig *config)
 {
     int i;
@@ -1154,7 +1163,7 @@ void FTDModel_CalMain(PixelType *H, PixelType *S, PixelType *V, int h_low, int h
         if (i == 510025)
             i = i;
 
-        // 分支1：H在范围内，S < s_low，V在范围内
+        // 鍒嗘敮1锛欻鍦ㄨ寖鍥村唴锛孲 < s_low锛孷鍦ㄨ寖鍥村唴
         if (*(H + i) > h_low && *(H + i) < h_high && *(S + i) < s_low && *(V + i) >= v_low && *(V + i) <= v_high)
         {
             x1 = *(H + i);
@@ -1197,7 +1206,7 @@ void FTDModel_CalMain(PixelType *H, PixelType *S, PixelType *V, int h_low, int h
                 dist = 255;
             *(skinmap + i) = (unsigned char)dist;
         }
-        // 分支2：H在范围内，S在[s_low, s_high]，V在范围内
+        // 鍒嗘敮2锛欻鍦ㄨ寖鍥村唴锛孲鍦╗s_low, s_high]锛孷鍦ㄨ寖鍥村唴
         else if (*(H + i) > h_low && *(H + i) < h_high && *(S + i) >= s_low && *(S + i) <= s_high && *(V + i) >= v_low && *(V + i) <= v_high)
         {
             x1 = *(H + i);
@@ -1240,7 +1249,7 @@ void FTDModel_CalMain(PixelType *H, PixelType *S, PixelType *V, int h_low, int h
                 dist = 255;
             *(skinmap + i) = (unsigned char)dist;
         }
-        // 分支3：H在范围内，S > s_high，V在范围内
+        // 鍒嗘敮3锛欻鍦ㄨ寖鍥村唴锛孲 > s_high锛孷鍦ㄨ寖鍥村唴
         else if (*(H + i) > h_low && *(H + i) < h_high && *(S + i) > s_high && *(V + i) >= v_low && *(V + i) <= v_high)
         {
             x1 = *(H + i);
@@ -1283,7 +1292,7 @@ void FTDModel_CalMain(PixelType *H, PixelType *S, PixelType *V, int h_low, int h
                 dist = 255;
             *(skinmap + i) = (unsigned char)dist;
         }
-        // 分支4：H超出范围，S < s_low，V在范围内
+        // 鍒嗘敮4锛欻瓒呭嚭鑼冨洿锛孲 < s_low锛孷鍦ㄨ寖鍥村唴
         else if ((*(H + i) <= h_low || *(H + i) >= h_high) && *(S + i) < s_low && *(V + i) >= v_low && *(V + i) <= v_high)
         {
             x1 = *(H + i);
@@ -1309,7 +1318,7 @@ void FTDModel_CalMain(PixelType *H, PixelType *S, PixelType *V, int h_low, int h
                 dist = 255;
             *(skinmap + i) = (unsigned char)dist;
         }
-        // 分支5：H超出范围，S > s_high，V在范围内
+        // 鍒嗘敮5锛欻瓒呭嚭鑼冨洿锛孲 > s_high锛孷鍦ㄨ寖鍥村唴
         else if ((*(H + i) <= h_low || *(H + i) >= h_high) && *(S + i) > s_high && *(V + i) >= v_low && *(V + i) <= v_high)
         {
             x1 = *(H + i);
@@ -1335,7 +1344,7 @@ void FTDModel_CalMain(PixelType *H, PixelType *S, PixelType *V, int h_low, int h
                 dist = 255;
             *(skinmap + i) = (unsigned char)dist;
         }
-        // 分支6：H在范围内，S < s_low，V < v_low
+        // 鍒嗘敮6锛欻鍦ㄨ寖鍥村唴锛孲 < s_low锛孷 < v_low
         else if (*(H + i) > h_low && *(H + i) < h_high && *(S + i) < s_low && *(V + i) < v_low)
         {
             x1 = *(H + i);
@@ -1378,7 +1387,7 @@ void FTDModel_CalMain(PixelType *H, PixelType *S, PixelType *V, int h_low, int h
                 dist = 255;
             *(skinmap + i) = (unsigned char)dist;
         }
-        // 分支7：H在范围内，S在[s_low, s_high]，V < v_low
+        // 鍒嗘敮7锛欻鍦ㄨ寖鍥村唴锛孲鍦╗s_low, s_high]锛孷 < v_low
         else if (*(H + i) > h_low && *(H + i) < h_high && *(S + i) >= s_low && *(S + i) <= s_high && *(V + i) < v_low)
         {
             x1 = *(H + i);
@@ -1421,7 +1430,7 @@ void FTDModel_CalMain(PixelType *H, PixelType *S, PixelType *V, int h_low, int h
                 dist = 255;
             *(skinmap + i) = (unsigned char)dist;
         }
-        // 分支8：H在范围内，S > s_high，V < v_low
+        // 鍒嗘敮8锛欻鍦ㄨ寖鍥村唴锛孲 > s_high锛孷 < v_low
         else if (*(H + i) > h_low && *(H + i) < h_high && *(S + i) > s_high && *(V + i) < v_low)
         {
             x1 = *(H + i);
@@ -1464,7 +1473,7 @@ void FTDModel_CalMain(PixelType *H, PixelType *S, PixelType *V, int h_low, int h
                 dist = 255;
             *(skinmap + i) = (unsigned char)dist;
         }
-        // 分支9：H超出范围，S < s_low，V < v_low
+        // 鍒嗘敮9锛欻瓒呭嚭鑼冨洿锛孲 < s_low锛孷 < v_low
         else if ((*(H + i) <= h_low || *(H + i) >= h_high) && *(S + i) < s_low && *(V + i) < v_low)
         {
             x1 = *(H + i);
@@ -1490,7 +1499,7 @@ void FTDModel_CalMain(PixelType *H, PixelType *S, PixelType *V, int h_low, int h
                 dist = 255;
             *(skinmap + i) = (unsigned char)dist;
         }
-        // 分支10：H超出范围，S在[s_low, s_high]，V < v_low
+        // 鍒嗘敮10锛欻瓒呭嚭鑼冨洿锛孲鍦╗s_low, s_high]锛孷 < v_low
         else if ((*(H + i) <= h_low || *(H + i) >= h_high) && *(S + i) >= s_low && *(S + i) <= s_high && *(V + i) < v_low)
         {
             x1 = *(H + i);
@@ -1516,7 +1525,7 @@ void FTDModel_CalMain(PixelType *H, PixelType *S, PixelType *V, int h_low, int h
                 dist = 255;
             *(skinmap + i) = (unsigned char)dist;
         }
-        // 分支11：H超出范围，S > s_high，V < v_low
+        // 鍒嗘敮11锛欻瓒呭嚭鑼冨洿锛孲 > s_high锛孷 < v_low
         else if ((*(H + i) <= h_low || *(H + i) >= h_high) && *(S + i) > s_high && *(V + i) < v_low)
         {
             x1 = *(H + i);
@@ -1542,7 +1551,7 @@ void FTDModel_CalMain(PixelType *H, PixelType *S, PixelType *V, int h_low, int h
                 dist = 255;
             *(skinmap + i) = (unsigned char)dist;
         }
-        // 分支12：H在范围内，S < s_low，V > v_high
+        // 鍒嗘敮12锛欻鍦ㄨ寖鍥村唴锛孲 < s_low锛孷 > v_high
         else if (*(H + i) > h_low && *(H + i) < h_high && *(S + i) < s_low && *(V + i) > v_high)
         {
             x1 = *(H + i);
@@ -1585,7 +1594,7 @@ void FTDModel_CalMain(PixelType *H, PixelType *S, PixelType *V, int h_low, int h
                 dist = 255;
             *(skinmap + i) = (unsigned char)dist;
         }
-        // 分支13：H在范围内，S在[s_low, s_high]，V > v_high
+        // 鍒嗘敮13锛欻鍦ㄨ寖鍥村唴锛孲鍦╗s_low, s_high]锛孷 > v_high
         else if (*(H + i) > h_low && *(H + i) < h_high && *(S + i) >= s_low && *(S + i) <= s_high && *(V + i) > v_high)
         {
             x1 = *(H + i);
@@ -1628,7 +1637,7 @@ void FTDModel_CalMain(PixelType *H, PixelType *S, PixelType *V, int h_low, int h
                 dist = 255;
             *(skinmap + i) = (unsigned char)dist;
         }
-        // 分支14：H在范围内，S > s_high，V > v_high
+        // 鍒嗘敮14锛欻鍦ㄨ寖鍥村唴锛孲 > s_high锛孷 > v_high
         else if (*(H + i) > h_low && *(H + i) < h_high && *(S + i) > s_high && *(V + i) > v_high)
         {
             x1 = *(H + i);
@@ -1671,7 +1680,7 @@ void FTDModel_CalMain(PixelType *H, PixelType *S, PixelType *V, int h_low, int h
                 dist = 255;
             *(skinmap + i) = (unsigned char)dist;
         }
-        // 分支15：H超出范围，S < s_low，V > v_high
+        // 鍒嗘敮15锛欻瓒呭嚭鑼冨洿锛孲 < s_low锛孷 > v_high
         else if ((*(H + i) <= h_low || *(H + i) >= h_high) && *(S + i) < s_low && *(V + i) > v_high)
         {
             x1 = *(H + i);
@@ -1697,7 +1706,7 @@ void FTDModel_CalMain(PixelType *H, PixelType *S, PixelType *V, int h_low, int h
                 dist = 255;
             *(skinmap + i) = (unsigned char)dist;
         }
-        // 分支16：H超出范围，S在[s_low, s_high]，V > v_high
+        // 鍒嗘敮16锛欻瓒呭嚭鑼冨洿锛孲鍦╗s_low, s_high]锛孷 > v_high
         else if ((*(H + i) <= h_low || *(H + i) >= h_high) && *(S + i) >= s_low && *(S + i) <= s_high && *(V + i) > v_high)
         {
             x1 = *(H + i);
@@ -1723,7 +1732,7 @@ void FTDModel_CalMain(PixelType *H, PixelType *S, PixelType *V, int h_low, int h
                 dist = 255;
             *(skinmap + i) = (unsigned char)dist;
         }
-        // 分支17：H超出范围，S > s_high，V > v_high
+        // 鍒嗘敮17锛欻瓒呭嚭鑼冨洿锛孲 > s_high锛孷 > v_high
         else if ((*(H + i) <= h_low || *(H + i) >= h_high) && *(S + i) > s_high && *(V + i) > v_high)
         {
             x1 = *(H + i);
@@ -1749,7 +1758,7 @@ void FTDModel_CalMain(PixelType *H, PixelType *S, PixelType *V, int h_low, int h
                 dist = 255;
             *(skinmap + i) = (unsigned char)dist;
         }
-        // 兜底分支：所有非肤色区域
+        // 鍏滃簳鍒嗘敮锛氭墍鏈夐潪鑲よ壊鍖哄煙
         else
         {
             dist = 0;
