@@ -231,7 +231,7 @@ int exp_LUT(int idx){
 	    // 转为 Q15 定点整数 (0~32767)
 	    //LUT[i] = (int)(e * 32767.0f);
 	
-		if(i=idx)return (int)(e * 32767.0f);
+		if(i==idx)return (int)(e * 32767.0f);
 	}
 }
 
