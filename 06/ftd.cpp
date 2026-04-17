@@ -90,6 +90,66 @@ void FTDModel_Run(struct FTDModel *model, struct FTDConfig *config, PixelType *i
             FTDModel_ModifyHSVRange(H, S, V, idx_frame, config);
         }
     }
+	else if (config->version == 2)
+	{
+	    int size = config->width * config->height;
+	    PixelType *Y  = in[0];
+	    PixelType *Cb = in[1];
+	    PixelType *Cr = in[2];
+	
+	    // ======================
+	    // 定点格式统一使用 Q12 (放大 2^12 = 4096 倍)
+	    // 所有小数全部变成整数运算
+	    // ======================
+	    const int muCr        = 150;                  // Cr 肤色均值 (8bit 整数)
+	    const int muCb        = 110;                  // Cb 肤色均值 (8bit 整数)
+	    const int invC00_Q12   = 10; // 逆协方差 Q12 定点化 (int)(0.0025f * 4096)
+	    const int invC11_Q12   = 10;
+	    const int invC01_Q12   = 0;
+	
+	    for (int i = 0; i < size; i++)
+	    {
+	        // ======================
+	        // 1. 10/12bit 转 8bit (右移2位)
+	        // ======================
+	        int cr = (Cr[i] >> 2);
+	        int cb = (Cb[i] >> 2);
+	
+	        // ======================
+	        // 2. 计算与肤色中心的差值
+	        // ======================
+	        int dcr = cr - muCr;
+	        int dcb = cb - muCb;
+	
+	        // ======================
+	        // 3. 计算马氏距离 d (结果为 Q12)
+	        // 使用 int64_t 避免乘法溢出
+	        // ======================
+	        int64_t term1 = (int64_t)dcr * dcr * invC00_Q12;
+	        int64_t term2 = (int64_t)dcb * dcb * invC11_Q12;
+	        int64_t term3 = 2 * (int64_t)dcr * dcb * invC01_Q12;
+	
+	        // 总和就是 d，定点 Q12
+	        int64_t d_Q12 = term1 + term2 + term3;
+	
+	        // ======================
+	        // 4. 【核心】exp(-d) 用 LUT + 线性插值 全整数计算
+	        // ======================
+	        int score_Q15 = fast_exp_neg(d_Q12);
+	
+	        // ======================
+	        // 5. 输出 val = 255 * (1 - exp(-d))
+	        // score_Q15 是 0~32767 对应 0~1
+	        // ======================
+	        int val = 255 - ((score_Q15 * 255) >> 15);
+	
+	        // 限幅 0~255
+	        if (val < 0) val = 0;
+	        if (val > 255) val = 255;
+	
+	        skinmap[i] = (PixelType)val;
+	    }
+	}
     else
     {
         config->version = config->version;
@@ -107,6 +167,74 @@ void FTDModel_Run(struct FTDModel *model, struct FTDConfig *config, PixelType *i
     free(V);
     return;
 }
+
+// ======================
+// 函数功能：计算 exp(-d)
+// 输入：d_Q12   Q12 定点数 (d=0~4 对应 0~16384)
+// 输出：Q15     0~32767 对应 0~1
+// ======================
+int fast_exp_neg(int64_t d_Q12)
+{
+    // ======================
+    // 公式 1：输入范围限制
+    // d > 4 时 exp(-d) ≈ 0，直接返回 0
+    // ======================
+    if (d_Q12 > 16384)
+        return 0;
+
+    // ======================
+    // 公式 2：映射到 LUT 索引
+    // LUT 对应 d ∈ [0, 4]
+    // idx = (d_Q12 * 256) / 16384 = d_Q12 / 64
+    // ======================
+    int idx = (int)(d_Q12 *256)>> 12>>2;
+
+    // ======================
+    // 公式 3：取小数部分（用于插值）
+    // frac = d_Q12 % 64  (0~63)
+    // ======================
+    int frac = (int)(d_Q12 & 0x3F);
+
+    // ======================
+    // 公式 4：LUT 查表公式 (你要的计算公式)
+    // 这是生成 LUT 的唯一公式：
+    //
+    // LUT[i] = round( exp( -4.0f * i / 255.0f ) * 32767.0f )
+    //
+    // i：0~255
+    // 4.0f：d 的最大范围
+    // 32767：Q15 放大倍数
+    // ======================
+
+    // ======================
+    // 公式 5：线性插值（全整数）
+    // y = y0 + (y1 - y0) * frac / 64
+    // ======================
+    int y0 = exp_LUT(idx);      // 查表整数点
+    int y1 = exp_LUT(idx + 1);  // 查表下一个点
+    int res = y0 + ((y1 - y0) * frac >> 6);
+
+    return res;
+}
+
+
+int exp_LUT(int idx){
+	// 生成 LUT 的公式（只此一个）
+	for (int i = 0; i < 256; i++)
+	{
+	    // 真实 d 值：0 ~ 4
+	    float d = 4.0f * i / 255.0f;
+	
+	    // 计算 exp(-d)
+	    float e = exp(-d);
+	
+	    // 转为 Q15 定点整数 (0~32767)
+	    //LUT[i] = (int)(e * 32767.0f);
+	
+		if(i=idx)return (int)(e * 32767.0f);
+	}
+}
+
 
 int ftd_alg(PixelType *pb, PixelType *pr, int size, unsigned char alut[65], unsigned char slut[256],
             unsigned short *skin_h, unsigned char *skinmap, unsigned int bitdepth,
