@@ -1922,3 +1922,19 @@ INT64 Sqrt_forFTD(INT64 X)
     }
     return mid;
 }
+
+/*
+PARA:
+hue_red_thr  19	
+hue_yellow_thr 150
+hue_red_slope 4
+hue_yellow_slope 6
+chr_low_thr 10
+chr_yellow_thr 40
+chr_low_slope 4
+chr_high_slope 6
+
+HSV_H_LOW_DEFAULT (S\V) 18 351 102 140 77 255
+HSV_H_LOW     30 330 102 140 77 255
+HSV_H MODEL_H 5    HSV_R  4
+*/
