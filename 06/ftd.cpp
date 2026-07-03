@@ -226,7 +226,7 @@ int exp_LUT(int idx){
 	    float d = 4.0f * i / 255.0f;
 	
 	    // 计算 exp(-d)
-	    float e = exp(-d);
+	    float e = exp(-d/1.0f);//must be 1.0f  not 1
 	
 	    // 转为 Q15 定点整数 (0~32767)
 	    //LUT[i] = (int)(e * 32767.0f);
