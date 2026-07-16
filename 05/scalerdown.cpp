@@ -55,7 +55,7 @@ void ScalerModel_SetBitdepth(struct ScalerModel *model,const std::vector<int>& b
 {
     for (int i = 0; i < NUM_CHN; ++i)
     {
-        model->bitdepth[i] = bitdepth[i];
+        model->bit_width[i] = bitdepth[i];
         model->pixel_step[i] = sizeof(PixelType);
     }
 }
