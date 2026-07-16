@@ -6,12 +6,12 @@ struct ScalerModel *ScalerModel_New( ScaleDownConfig *config) {
 
 
     for (i = 0; i < ADSCALER_WIN_H; ++i) {
-        PCMEM_ALLOC_N(model->pixel[i], config->width[0] + 2 * ADSCALER_WIN_W, ScalerPixel);
+        PCMEM_ALLOC_N(model->pixel[i], config->in_width[0] + 2 * ADSCALER_WIN_W, ScalerPixel);
         PCMEM_ALLOC_N(model->h_nmintrp_out[i], config->out_width[0], ScalerPixel);
         PCMEM_ALLOC_N(model->h_out[i], config->out_width[0], ScalerPixel);
     }
 
-    PCMEM_ALLOC_N(model->v_nmintrp_out, config->width[0] + 2 * ADSCALER_WIN_W, ScalerPixel);
+    PCMEM_ALLOC_N(model->v_nmintrp_out, config->in_width[0] + 2 * ADSCALER_WIN_W, ScalerPixel);
     PCMEM_ALLOC_N(model->nmintrp_out, config->out_width[0], ScalerPixel);
 
     PCMEM_ALLOC_N(model->x_intgs, config->out_width[0], int);
@@ -55,7 +55,7 @@ void ScalerModel_SetBitdepth(struct ScalerModel *model,const std::vector<int>& b
 {
     for (int i = 0; i < NUM_CHN; ++i)
     {
-        model->bit_depth[i] = bitdepth[i];
+        model->bitdepth[i] = bitdepth[i];
         model->pixel_step[i] = sizeof(PixelType);
     }
 }
@@ -125,13 +125,13 @@ void ScalerModel_Init(
         if (idx_load_line < 0) {
             idx_load_line = 0;  // 小于 0 时取第一行
         }
-        if (idx_load_line >= config->height[model->chn] - 1) {
-            idx_load_line = config->height[model->chn] - 1;  // 超过时取最后一行
+        if (idx_load_line >= config->in_height[model->chn] - 1) {
+            idx_load_line = config->in_height[model->chn] - 1;  // 超过时取最后一行
         }
         ScalerModel_InputLine(
             model->pixel[r] + ADSCALER_WIN_W, 
             in + config->in_width[model->chn] * idx_load_line , 
-            config->width[model->chn]
+            config->in_width[model->chn]
         );
 
         // 6. 对加载的行数据进行边缘扩展
@@ -164,7 +164,7 @@ void ScalerModel_GenOutputCoors(struct ScalerModel *model, struct ScaleDownConfi
         model->x_intgs[i] = tmp_loc >> LOCFRACBIT;
         model->x_fracs[i] = tmp_loc - (model->x_intgs[i] << LOCFRACBIT);
         model->x_intgs[i] = CLAMP(model->x_intgs[i],
-            -ADSCALER_WIN_W - HORZ_TAB_LEFT, config->width[0] + 2 * ADSCALER_WIN_W - HORZ_TAB_RIGHT);
+            -ADSCALER_WIN_W - HORZ_TAB_LEFT, config->in_width[0] + 2 * ADSCALER_WIN_W - HORZ_TAB_RIGHT);
         coor_x += config->hstep[model->chn];
     }
 
@@ -175,9 +175,9 @@ void ScalerModel_GenOutputCoors(struct ScalerModel *model, struct ScaleDownConfi
         {
             tmp_loc = (tmp_loc >> LOCFRACBIT) << LOCFRACBIT;
         }
-        if ((tmp_loc >> LOCFRACBIT) >= (config->height[model->chn]-1))
+        if ((tmp_loc >> LOCFRACBIT) >= (config->in_height[model->chn]-1))
         {
-            tmp_loc = (config->height[model->chn]-1);
+            tmp_loc = (config->in_height[model->chn]-1);
             tmp_loc <<= LOCFRACBIT;
         }
         model->y_intgs[i] = tmp_loc >> LOCFRACBIT;
@@ -200,7 +200,7 @@ void ScalerModel_RunLine(struct ScalerModel *model, struct ScaleDownConfig *conf
         }
         ScalerModel_RefreshX(model, config);
             intrp_out = model->nmintrp_out[c];
-        intrp_out = CLAMP(intrp_out, 0, (1 << model->bit_depth[model->chn]) - 1);
+        intrp_out = CLAMP(intrp_out, 0, (1 << model->bit_width[model->chn]) - 1);
             model->out[c] = intrp_out;
     }
 }
@@ -209,7 +209,7 @@ void ScalerModel_RunLine(struct ScalerModel *model, struct ScaleDownConfig *conf
 
 void ScalerModel_NormalInterpolation(struct ScalerModel* model, ScaleDownConfig* config)
 {
-    int s, i, r;
+    int c, i, r;
     int sx;
     int cumsum;
     char htab[HORZ_TAB];
@@ -425,8 +425,8 @@ void ScalerModel_RollLineBuffer(struct ScalerModel *model, struct ScaleDownConfi
             idx_load_line = model->y_intg + ADSCALER_HALF_WIN_H - roll;
             if (idx_load_line < 0)
                 idx_load_line = 0;
-            if (idx_load_line >= config->height[model->chn] - 1)
-                idx_load_line = config->height[model->chn] - 1;
+            if (idx_load_line >= config->in_height[model->chn] - 1)
+                idx_load_line = config->in_height[model->chn] - 1;
 
             ScalerModel_InputLine(model->pixel[ADSCALER_LASTROW - roll] + ADSCALER_WIN_W,
                 in + config->in_width[model->chn] * idx_load_line,
