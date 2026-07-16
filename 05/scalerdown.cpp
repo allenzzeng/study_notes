@@ -335,18 +335,12 @@ void ScalerModel_RefreshY(
     model->x_intg = model->x_intgs[0];
     model->x_frac = model->x_fracs[0];
 
-    // 需要滚动行缓存时，调用滚动函数
     if (model->num_rolllines > 0) {
         ScalerModel_RollLineBuffer(model, config, in);
     }
-
-    // 刷新垂直方向状态（如边缘检测、插值参数）
     ScalerModel_RefreshStatusY(model, config);
 }
 
-// ------------------------------
-// 垂直方向状态刷新核心逻辑
-// ------------------------------
 void ScalerModel_RefreshStatusY(
     struct ScalerModel *model, 
     struct ScaleDownConfig *config
@@ -355,34 +349,13 @@ void ScalerModel_RefreshStatusY(
 
     // 遍历垂直窗口的每一行（ADSCALER_WIN_H 为窗口高度）
     for (i = 0; i < ADSCALER_WIN_H; ++i) {
-        // 计算当前窗口行对应的像素缓存地址（考虑水平偏移）
         model->win_pixel[i] = model->pixel[i] + model->x_intg + ADSCALER_WIN_W;
     }
-
-    // 【模式判断】：VIDEOADMODE 下启用双向插值与采样
-    if (config->adscaler_mode[model->chn] == VIDEOADMODE) {
-        BiDirection_Run(model->direction, model->win_pixel);      // 边缘方向检测
-        Adsampler_Sampling(model->sampler, model->direction, model->win_pixel); // 方向采样
-    }
-
-    // 【模式判断】：非 UIMODE 下计算梯度与峰值权重
-    if (config->adscaler_mode[model->chn] != UIMODE) {
-        ScalerModel_CalcGradient(model, model->win_pixel);      // 计算图像梯度
-        // 计算峰值权重（带移位优化的乘法与裁剪）
-        model->peak_weights = (model->edge_strength * config->peak_weights_strength + 256) >> 9;
-        // 权重裁剪（防止溢出）
-        model->peak_weights = model->peak_weights > (1 << config->th_strong_edge) ? 
-            (1 << config->th_strong_edge) : model->peak_weights;
-    }
-
-    // 遍历局部窗口，计算 min/max 用于边缘检测
     for (m = 0; m < 2; ++m) {
         for (n = -1; n < 1; ++n) {
             // 初始化局部 min/max 为当前窗口像素值
             model->local_min2x2[m][n + 1] = model->win_pixel[m][n];
             model->local_max2x2[m][n + 1] = model->win_pixel[m][n];
-
-            // 遍历 3x3 窗口，更新局部 min/max
             for (i = m; i < m + 3; ++i) {
                 for (j = n; j < n + 3; ++j) {
                     // 更新局部最小值
@@ -399,17 +372,12 @@ void ScalerModel_RefreshStatusY(
     }
 }
 
-// ------------------------------
-// 水平方向状态刷新：处理列偏移与状态更新
-// ------------------------------
 void ScalerModel_RefreshX(
     struct ScalerModel *model, 
     struct ScaleDownConfig *config
 ) {
     int i;
-    // 计算水平方向步长（列偏移量）
     model->x_stride = model->x_intgs[model->out_x] - model->x_intg;
-    // 更新水平方向坐标（整数+小数部分）
     model->x_intg = model->x_intgs[model->out_x];
     model->x_frac = model->x_fracs[model->out_x];
 
@@ -420,8 +388,6 @@ void ScalerModel_RefreshX(
         }
     }
 
-    // 刷新水平方向状态（如局部 min/max 更新）
-    ScalerModel_RefreshStatusX(model, config);
 }
 
 void ScalerModel_RollLineBuffer(struct ScalerModel *model, struct ScaleDownConfig *config, PixelType *in)
@@ -429,6 +395,7 @@ void ScalerModel_RollLineBuffer(struct ScalerModel *model, struct ScaleDownConfi
     int roll, r, idx_load_line;
     ScalerPixel *tmp_pix;
     ScalerPixel *tmp_h_norm_out;
+    ScalerPixel *tmp_h_out;
 
     if (model->num_rolllines >= ADSCALER_WIN_H)
     {
@@ -440,13 +407,16 @@ void ScalerModel_RollLineBuffer(struct ScalerModel *model, struct ScaleDownConfi
         {
             tmp_pix = model->pixel[0];
             tmp_h_norm_out = model->h_nmintrp_out[0];
+            tmp_h_norm_out = model->h_out[0];
             for (r = 0; r < ADSCALER_WIN_H - 1; ++r)
             {
                 model->pixel[r] = model->pixel[r + 1];
                 model->h_nmintrp_out[r] = model->h_nmintrp_out[r + 1];
+                model->h_out[r] = model->h_out[r + 1];
             }
             model->pixel[ADSCALER_LASTROW] = tmp_pix;
             model->h_nmintrp_out[ADSCALER_LASTROW] = tmp_h_norm_out;
+            model->h_out[ADSCALER_LASTROW] = tmp_h_out;
         }
 }
         // load num_rolllines input line.
@@ -459,10 +429,10 @@ void ScalerModel_RollLineBuffer(struct ScalerModel *model, struct ScaleDownConfi
                 idx_load_line = config->height[model->chn] - 1;
 
             ScalerModel_InputLine(model->pixel[ADSCALER_LASTROW - roll] + ADSCALER_WIN_W,
-                in + config->width[model->chn] * idx_load_line * model->pixel_step[model->chn],
-                config->width[model->chn], model->pixel_step[model->chn]);
+                in + config->in_width[model->chn] * idx_load_line,
+                config->in_width[model->chn]);
 
-            ScalerModel_LineBorderExtend(model->pixel[ADSCALER_LASTROW - roll], config->width[model->chn]);
+            ScalerModel_LineBorderExtend(model->pixel[ADSCALER_LASTROW - roll], config->in_width[model->chn]);
         }
     
 }
@@ -480,74 +450,22 @@ dbg_error:
     return;
 }
 
-void ScalerModel_InputLine(ScalerPixel *dst, PixelType *src, int length, int pixel_step)
+void ScalerModel_InputLine(ScalerPixel *dst, PixelType *src, int length)
 {
     int i;
-
-    if (pixel_step == 1)
-    {
         for (i = 0; i < length; ++i)
         {
-            *dst = *(unsigned char *)src;
-            ++dst;
-            src += pixel_step;
+            *dst++ = (ScalerPixel)*src++;
         }
-    }
-    else if (pixel_step == 2)
-    {
-        for (i = 0; i < length; ++i)
-        {
-            *dst = *(unsigned short *)src;
-            ++dst;
-            src += pixel_step;
-        }
-    }
-    else
-    {
-        for (i = 0; i < length; ++i)
-        {
-            *dst = *(unsigned int *)src;
-            ++dst;
-            src += pixel_step;
-        }
-    }
 }
 
 void ScalerModel_OutputLine(PixelType *dst, ScalerPixel *src, int length, int pixel_step)
 {
     int i;
-    unsigned int *dst_4bytes;
-    unsigned short *dst_2bytes;
-    unsigned char *dst_1bytes;
-
-    if (pixel_step == 1)
-    {
-        dst_1bytes = (unsigned char *)dst;
         for (i = 0; i < length; ++i)
         {
-            *dst_1bytes = (unsigned char)*src;
-            ++src;
-            ++dst_1bytes;
+            *dst = (ScalerPixel)*src;
+            ++src;++dst;
+            
         }
-    }
-    else if (pixel_step == 2)
-    {
-        dst_2bytes = (unsigned short *)dst;
-        for (i = 0; i < length; ++i)
-        {
-            *dst_2bytes = (unsigned short)*src;
-            ++src;
-            ++dst_2bytes;
-        }
-    }
-    else
-    {
-        dst_4bytes = (unsigned int *)dst;
-        for (i = 0; i < length; ++i)
-        {
-            *dst_4bytes = (unsigned int)*src;
-            ++src;
-            ++dst_4bytes;
-        }
-    }
 }
