@@ -407,7 +407,7 @@ void ScalerModel_RollLineBuffer(struct ScalerModel *model, struct ScaleDownConfi
         {
             tmp_pix = model->pixel[0];
             tmp_h_norm_out = model->h_nmintrp_out[0];
-            tmp_h_norm_out = model->h_out[0];
+            tmp_h_out = model->h_out[0];
             for (r = 0; r < ADSCALER_WIN_H - 1; ++r)
             {
                 model->pixel[r] = model->pixel[r + 1];
