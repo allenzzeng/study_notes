@@ -51,12 +51,12 @@ void ScalerModel_Free(struct ScalerModel **model)
 dbg_error:
     return;
 }
-void ScalerModel_SetBitdepth(struct ScalerModel *model, int bitdepth[]) //?
+void ScalerModel_SetBitdepth(struct ScalerModel *model,const std::vector<int>& bitdepth) //?
 {
     for (int i = 0; i < NUM_CHN; ++i)
     {
         model->bit_depth[i] = bitdepth[i];
-        model->pixel_step[i] = (bitdepth[i] + 7) >> 3;
+        model->pixel_step[i] = sizeof(PixelType);
     }
 }
 void ScalerModel_Run(
