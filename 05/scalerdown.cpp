@@ -67,14 +67,10 @@ void ScalerModel_Run(
 ) {
     // 遍历每个通道（NUM_CHN 为通道数量宏定义，如 3 表示 Y/U/V）
     for (int chn = 0; chn < NUM_CHN; ++chn) {
-        // 设置当前处理通道
         model->chn = chn;
-        // 调用单通道处理函数
         ScalerModel_RunChannel(model, config, in[chn], out[chn]);
     }
 }
-
-// 单通道处理核心逻辑：负责单个通道的图像缩放流程
 void ScalerModel_RunChannel(
     struct ScalerModel *model, 
     struct ScaleDownConfig *config, 
@@ -108,13 +104,7 @@ void ScalerModel_Init(
 ) {
     // 循环变量：r 遍历窗口行，idx_load_line 计算实际加载的行索引
     int r, idx_load_line;
-
-    // 1. 生成输出坐标（整数+小数部分）
-    //    作用：计算缩放后每个输出像素对应的输入图像坐标（用于插值）
     ScalerModel_GenOutputCoors(model, config);
-
-    // 2. 初始化模型的坐标参数（取第 0 个输出像素的坐标值）
-    //    说明：y_intg/x_intg 是坐标整数部分，y_frac/x_frac 是小数部分
     model->y_intg = model->y_intgs[0];  
     model->x_intg = model->x_intgs[0];  
     model->y_frac = model->y_fracs[0];  
@@ -133,9 +123,6 @@ void ScalerModel_Init(
             in + config->in_width[model->chn] * idx_load_line , 
             config->in_width[model->chn]
         );
-
-        // 6. 对加载的行数据进行边缘扩展
-        //    作用：处理图像边缘时，通过复制边缘像素避免越界访问
         ScalerModel_LineBorderExtend(model->pixel[r], config->in_width[model->chn]);
     }
 }
@@ -308,16 +295,10 @@ void Scaler_GetNormalScalerCoefs(char coefs[], int tabs, int sx, unsigned int co
 
     for (i = 0; i < num_table_unit; ++i)
     {
-        // 从coefs_table中获取当前的unsigned int单元
         table_unit = coefs_table[offset + i];
-
-        // 提取table_unit的第0个字节（低8位），并将其符号扩展后存入coefs数组
         *coefs_ptr++ = (((table_unit & 0xff)) << 24) >> 24;
-        // 提取table_unit的第1个字节（8 - 15位），并将其符号扩展后存入coefs数组
         *coefs_ptr++ = ((((table_unit & 0xff00) >> 8)) << 24) >> 24;
-        // 提取table_unit的第2个字节（16 - 23位），并将其符号扩展后存入coefs数组
         *coefs_ptr++ = ((((table_unit & 0xff0000) >> 16)) << 24) >> 24;
-        // 提取table_unit的第3个字节（24 - 31位），并将其符号扩展后存入coefs数组
         *coefs_ptr++ = ((((table_unit & 0xff000000) >> 24)) << 24) >> 24;
     }
 }
@@ -327,9 +308,7 @@ void ScalerModel_RefreshY(
     struct ScaleDownConfig *config, 
     PixelType *in
 ) {
-    // 计算需要滚动的行数（垂直方向坐标差）
     model->num_rolllines = model->y_intgs[model->out_y] - model->y_intg;
-    // 更新垂直方向坐标（整数+小数部分）
     model->y_intg = model->y_intgs[model->out_y];
     model->y_frac = model->y_fracs[model->out_y];
     model->x_intg = model->x_intgs[0];
@@ -351,25 +330,6 @@ void ScalerModel_RefreshStatusY(
     for (i = 0; i < ADSCALER_WIN_H; ++i) {
         model->win_pixel[i] = model->pixel[i] + model->x_intg + ADSCALER_WIN_W;
     }
-    for (m = 0; m < 2; ++m) {
-        for (n = -1; n < 1; ++n) {
-            // 初始化局部 min/max 为当前窗口像素值
-            model->local_min2x2[m][n + 1] = model->win_pixel[m][n];
-            model->local_max2x2[m][n + 1] = model->win_pixel[m][n];
-            for (i = m; i < m + 3; ++i) {
-                for (j = n; j < n + 3; ++j) {
-                    // 更新局部最小值
-                    if (model->win_pixel[i][j] < model->local_min2x2[m][n + 1]) {
-                        model->local_min2x2[m][n + 1] = model->win_pixel[i][j];
-                    }
-                    // 更新局部最大值
-                    if (model->win_pixel[i][j] > model->local_max2x2[m][n + 1]) {
-                        model->local_max2x2[m][n + 1] = model->win_pixel[i][j];
-                    }
-                }
-            }
-        }
-    }
 }
 
 void ScalerModel_RefreshX(
@@ -380,14 +340,11 @@ void ScalerModel_RefreshX(
     model->x_stride = model->x_intgs[model->out_x] - model->x_intg;
     model->x_intg = model->x_intgs[model->out_x];
     model->x_frac = model->x_fracs[model->out_x];
-
-    // 需要更新列偏移时，调整窗口像素地址
     if (model->x_stride > 0) {
         for (i = 0; i < ADSCALER_WIN_H; ++i) {
             model->win_pixel[i] += model->x_stride;
         }
     }
-
 }
 
 void ScalerModel_RollLineBuffer(struct ScalerModel *model, struct ScaleDownConfig *config, PixelType *in)
