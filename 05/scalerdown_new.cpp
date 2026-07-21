@@ -200,6 +200,7 @@ void ScalerModel_HorzInterpFull(struct ScalerModel* model, ScaleDownConfig* conf
                 cumsum = abs(cumsum) + (1 << (SCALER_COEFS_BITS - 1));
                 cumsum = (cumsum > hfilt_max) ? hfilt_max : cumsum;
                 dst_line[c] = (unsigned short)(cumsum >> SCALER_COEFS_BITS);
+                dst_line[c] = CLAMP(dst_line[c],0,0x3ff);
             }
             else
             {
