@@ -117,7 +117,7 @@ void ScalerModel_GenOutputCoors(struct ScalerModel *model, struct ScaleDownConfi
         model->x_intgs[i] = tmp_loc >> LOCFRACBIT;
         model->x_fracs[i] = tmp_loc - (model->x_intgs[i] << LOCFRACBIT);
         model->x_intgs[i] = CLAMP(model->x_intgs[i],
-            -ADSCALER_WIN_W - HORZ_TAB_LEFT, config->in_width[0] + 2 * ADSCALER_WIN_W - HORZ_TAB_RIGHT);
+            -ADSCALER_WIN_W , config->in_width[0] + 2 * ADSCALER_WIN_W - 1);
         coor_x += config->hstep[model->chn];
     }
 
