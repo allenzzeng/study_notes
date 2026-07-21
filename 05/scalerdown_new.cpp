@@ -117,7 +117,7 @@ void ScalerModel_GenOutputCoors(struct ScalerModel *model, struct ScaleDownConfi
         model->x_intgs[i] = tmp_loc >> LOCFRACBIT;
         model->x_fracs[i] = tmp_loc - (model->x_intgs[i] << LOCFRACBIT);
         model->x_intgs[i] = CLAMP(model->x_intgs[i],
-            -ADSCALER_WIN_W , config->in_width[0] + 2 * ADSCALER_WIN_W - 1);
+            -ADSCALER_WIN_W - HORZ_TAB_LEFT, config->in_width[0] + 2 * ADSCALER_WIN_W - HORZ_TAB_RIGHT);
         coor_x += config->hstep[model->chn];
     }
 
@@ -279,8 +279,9 @@ void ScalerModel_VertInterpFull(struct ScalerModel* model, ScaleDownConfig* conf
             for (r = VERT_TAB_UP; r <= VERT_TAB_DOWN; ++r)
             {
                 // 行索引映射：与原窗口行的对应关系完全一致，保证插值位置对齐
-                const int h_out_idx = r - ADSCALER_WIN_UP;
-                int row_idx = y_intg + h_out_idx - ADSCALER_HALF_WIN_H + 1;
+                //const int h_out_idx = r - ADSCALER_WIN_UP;
+                //int row_idx = y_intg + h_out_idx - ADSCALER_HALF_WIN_H + 1;
+                int row_idx = y_intg + r;
                 
                 // 垂直边界钳位：与原行加载逻辑完全一致
                 if (row_idx < 0)
@@ -302,19 +303,21 @@ void ScalerModel_VertInterpFull(struct ScalerModel* model, ScaleDownConfig* conf
             else {
                 nmintrp_out[c] = 0;
             }
+            nmintrp_out[c] = CLAMP(nmintrp_out[c], 0, (1 << model->bit_width[model->chn]) - 1);//
         }
 
         // 输出钳位到位宽范围，与原 RunLine 逻辑一致
-        for (c = 0; c < out_w; ++c)
-        {
-            int intrp_out = nmintrp_out[c];
-            intrp_out = CLAMP(intrp_out, 0, (1 << model->bit_width[model->chn]) - 1);
-            model->out[c] = intrp_out;
-        }
+       // for (c = 0; c < out_w; ++c)
+       // {
+         //   int intrp_out = nmintrp_out[c];
+          //  intrp_out = CLAMP(intrp_out, 0, (1 << model->bit_width[model->chn]) - 1);
+          //  model->out[c] = intrp_out;
+        //}
 
         ScalerModel_OutputLine(
             out + out_w * j, 
-            model->out, 
+            //model->out, 
+            model->nmintrp_out, 
             out_w,
             model->pixel_step[model->chn]
         );
