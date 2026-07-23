@@ -9,3 +9,5 @@ adscaler_model.h
 bidirection.h大部分是对的，少部分是不符合的。其他代码不太确定。
 
 ^(\s)*$\n
+
+ASU100 将16个参考点旋转 x'=cos t * x+sin t *y ; y'=- sin t * x+cos t*y;
